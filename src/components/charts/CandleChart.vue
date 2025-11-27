@@ -3,6 +3,8 @@ import type { ChartSliderPosition, IndicatorConfig, PairHistory, PlotConfig, Tra
 import { ChartType } from '@/types';
 
 import ECharts from 'vue-echarts';
+import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 
 import type { EChartsOption, ScatterSeriesOption } from 'echarts';
 import { BarChart, CandlestickChart, LineChart, ScatterChart } from 'echarts/charts';
@@ -134,8 +136,8 @@ function updateChart(initial = false) {
   }
   // Avoid mutation of dataset.columns array
   const columns = props.dataset.columns.slice();
-
-  const colDate = columns.findIndex((el) => el === '__date_ts');
+  
+  const colDate = columns.findIndex((el) => el === 'date');
   const colOpen = columns.findIndex((el) => el === 'open');
   const colHigh = columns.findIndex((el) => el === 'high');
   const colLow = columns.findIndex((el) => el === 'low');
@@ -177,9 +179,10 @@ function updateChart(initial = false) {
       });
     }
   }
-  let dataset = props.heikinAshi
+  let dataset: any[][] = props.heikinAshi
     ? heikinAshiDataset(columns, props.dataset.data)
     : props.dataset.data.slice();
+
 
   diffCols.value.forEach(([colFrom, colTo]) => {
     if (colFrom && colTo) {
@@ -189,12 +192,38 @@ function updateChart(initial = false) {
   });
   // Add new rows to end to allow slight "scroll past"
   const scrollPastLength = 5;
-  const lastColDate = dataset[dataset.length - 1]?.[colDate];
-  if (lastColDate) {
-    const newArray = Array(scrollPastLength);
-    newArray[colDate] = lastColDate + props.dataset.timeframe_ms * scrollPastLength;
-    dataset.push(newArray);
+  const lastRow = dataset[dataset.length - 1];
+  const lastColDateVal = lastRow?.[colDate];
+
+  if (lastColDateVal) {
+    let lastTimestamp: number;
+    if (typeof lastColDateVal === 'string') {
+      lastTimestamp = new Date(lastColDateVal).getTime();
+    } else {
+      lastTimestamp = Number(lastColDateVal);
+    }
+
+    if (!isNaN(lastTimestamp)) {
+      const newArray: any[] = [];
+      newArray[colDate] = lastTimestamp + props.dataset.timeframe_ms * scrollPastLength;
+      dataset.push(newArray);
+    }
   }
+
+  // Format date column
+  dataset = dataset.map((row) => {
+    const newRow = [...row];
+    if (newRow[colDate]) {
+      const dateVal = newRow[colDate];
+      const dateObj = new Date(dateVal as string | number | Date);
+      if (!isNaN(dateObj.getTime())) {
+        newRow[colDate] = props.useUTC
+          ? formatInTimeZone(dateObj, 'UTC', 'yyyy-MM-dd HH:mm:ss')
+          : format(dateObj, 'yyyy-MM-dd HH:mm:ss');
+      }
+    }
+    return newRow;
+  });
 
   const options: EChartsOption = {
     dataset: {
@@ -411,7 +440,7 @@ function updateChart(initial = false) {
       }
       if (Array.isArray(chartOptions.value.xAxis) && chartOptions.value.xAxis.length <= plotIndex) {
         chartOptions.value.xAxis.push({
-          type: 'time',
+          type: 'category',
           gridIndex: currGridIdx,
           axisLine: { onZero: false },
           axisTick: { show: false },
@@ -420,7 +449,6 @@ function updateChart(initial = false) {
             label: { show: false },
           },
           splitLine: { show: false },
-          splitNumber: 20,
         });
       }
       if (Array.isArray(chartOptions.value.dataZoom)) {
@@ -503,6 +531,35 @@ function updateChart(initial = false) {
     props.dataset,
     filteredTrades.value,
   );
+  if (tradesSeries.data && Array.isArray(tradesSeries.data)) {
+    tradesSeries.data = tradesSeries.data.map((item) => {
+      if (Array.isArray(item)) {
+        const newItem = [...item];
+        const dateVal = newItem[0];
+        if (dateVal) {
+          const dateObj = new Date(dateVal as string | number | Date);
+          if (!isNaN(dateObj.getTime())) {
+            const formatted = props.useUTC
+              ? formatInTimeZone(dateObj, 'UTC', 'yyyy-MM-dd HH:mm:ss')
+              : format(dateObj, 'yyyy-MM-dd HH:mm:ss');
+            newItem.push(formatted);
+          } else {
+            newItem.push('');
+          }
+        }
+        return newItem;
+      }
+      return item;
+    });
+    if (tradesSeries.data.length > 0 && Array.isArray(tradesSeries.data[0])) {
+      const newColIndex = (tradesSeries.data[0] as any[]).length - 1;
+      if (!tradesSeries.encode) {
+        tradesSeries.encode = {};
+      }
+      (tradesSeries.encode as any).x = newColIndex;
+    }
+  }
+
   if (Array.isArray(chartOptions.value.series)) {
     chartOptions.value.series.push(tradesSeries);
   }
@@ -575,7 +632,7 @@ function initializeChartOptions() {
     },
     xAxis: [
       {
-        type: 'time',
+        type: 'category',
         axisLine: { onZero: false },
         axisTick: { show: true },
         axisLabel: { show: true },
@@ -584,12 +641,11 @@ function initializeChartOptions() {
         },
         position: 'top',
         splitLine: { show: false },
-        splitNumber: 20,
         min: 'dataMin',
         max: 'dataMax',
       },
       {
-        type: 'time',
+        type: 'category',
         gridIndex: 1,
         axisLine: { onZero: false },
         axisTick: { show: false },
@@ -598,7 +654,6 @@ function initializeChartOptions() {
           label: { show: false },
         },
         splitLine: { show: false },
-        splitNumber: 20,
         min: 'dataMin',
         max: 'dataMax',
       },
