@@ -1,5 +1,5 @@
 <script setup lang="ts">
-withDefaults(
+const props = withDefaults(
   defineProps<{
     availablePairs: string[];
     selectedPair?: string;
@@ -13,6 +13,16 @@ const emit = defineEmits<{
   selectionChange: [value: string];
 }>();
 
+const filterText = ref('');
+
+const filteredPairs = computed(() => {
+  if (!filterText.value) {
+    return props.availablePairs;
+  }
+  const filter = filterText.value.toLowerCase();
+  return props.availablePairs.filter((pair) => pair.toLowerCase().includes(filter));
+});
+
 const selectPair = (pair: string) => {
   emit('selectionChange', pair);
 };
@@ -21,12 +31,20 @@ const selectPair = (pair: string) => {
 <template>
   <div class="flex flex-col items-stretch h-full overflow-hidden">
     <h3 class="font-bold text-2xl">Available pairs:</h3>
+    <div class="mb-2">
+      <InputText
+        v-model="filterText"
+        placeholder="Filter pairs..."
+        class="w-full"
+        autofocus
+      />
+    </div>
     <ul
       class="divide-y border-x border-surface-500 rounded-sm border-y divide-solid divide-surface-500 overflow-y-auto overflow-x-hidden"
-      style="max-height: calc(100vh - 150px)"
+      style="max-height: calc(100vh - 200px)"
     >
       <li
-        v-for="pair in availablePairs"
+        v-for="pair in filteredPairs"
         :key="pair"
         button
         :class="{
