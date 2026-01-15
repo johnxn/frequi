@@ -3,7 +3,7 @@ export const useChartConfigStore = defineStore(
   () => {
     const strategy = ref<string>('');
     const useLiveData = ref<boolean>(false);
-    const selectedTimeframe = ref<string>('1h');
+    const selectedTimeframe = ref<string>('30m');
     const timerange = ref<string>('');
 
     return {
