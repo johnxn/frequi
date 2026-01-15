@@ -57,7 +57,6 @@ watch(
 
 onMounted(() => {
   if (!props.modelValue) {
-    dateFrom.value = timestampToDateString(new Date(now.getFullYear(), now.getMonth() - 1, 1));
   } else {
     updateInput();
   }
