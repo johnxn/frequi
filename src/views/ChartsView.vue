@@ -98,70 +98,124 @@ watch(
     immediate: true,
   },
 );
+
+const showLeftBar = ref(false);
+
+function selectPair(pair: string) {
+  botStore.activeBot.plotPair = pair;
+  if (botStore.activeBot.isWebserverMode && finalTimeframe.value) {
+    refreshOHLCV(pair, []);
+  }
+}
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <!-- <div v-if="isWebserverMode" class="me-auto ms-3"> -->
-    <!-- Currently only available in Webserver mode -->
-    <!-- <b-form-checkbox v-model="historicView">HistoricData</b-form-checkbox> -->
-    <!-- </div> -->
-    <div v-if="botStore.activeBot.isWebserverMode" class="md:mx-3 mt-2 px-1">
-      <Panel header="Settings" toggleable>
-        <div
-          class="mb-2 border dark:border-surface-700 border-surface-300 rounded-md p-2 text-start"
+  <div class="flex flex-row pt-1 relative" style="height: calc(100vh - 60px)">
+    <!-- Left bar -->
+    <div
+      class="flex md:flex-row h-full w-16 transition-all duration-200 shrink-0 border-r border-surface-200 dark:border-surface-900"
+      :class="{
+        'w-78': showLeftBar,
+      }"
+    >
+      <div class="flex flex-col fixed">
+        <Button
+          class="self-start"
+          aria-label="Close"
+          size="small"
+          severity="secondary"
+          variant="outlined"
+          @click="showLeftBar = !showLeftBar"
         >
-          <div class="flex flex-row gap-5">
-            <BaseCheckbox v-model="exchange.customExchange" class="mb-2">
-              Custom Exchange
-            </BaseCheckbox>
-            <span v-show="!exchange.customExchange">
-              Current Exchange:
-              {{ botStore.activeBot.botState.exchange }}
-              {{ botStore.activeBot.botState.trading_mode }}
-            </span>
-          </div>
-          <Transition name="fade">
-            <ExchangeSelect v-show="exchange.customExchange" v-model="exchange.selectedExchange" />
-          </Transition>
-        </div>
-        <div class="grid grid-cols-3 md:grid-cols-5 mx-1 gap-1 md:gap-2">
-          <div class="text-start md:me-1 col-span-2">
-            <span>Strategy</span>
-            <StrategySelect v-model="chartStore.strategy" class="mt-1 mb-1"></StrategySelect>
-            <BaseCheckbox
-              v-if="botStore.activeBot.botFeatures.chartLiveData"
-              v-model="chartStore.useLiveData"
-              class="align-self-center"
-              title="Use live data from the exchange. Only use if you don't have data downloaded locally."
-            >
-              Use Live Data
-            </BaseCheckbox>
-          </div>
-          <div class="flex flex-col text-start">
-            <span>Timeframe</span>
-            <TimeframeSelect v-model="chartStore.selectedTimeframe" class="mt-1" />
-          </div>
-          <TimeRangeSelect
-            v-model="chartStore.timerange"
-            class="col-span-3 md:col-span-2"
-          ></TimeRangeSelect>
-        </div>
-      </Panel>
+          <i-mdi-chevron-right v-if="!showLeftBar" width="24" height="24" />
+          <i-mdi-chevron-left v-if="showLeftBar" width="24" height="24" />
+        </Button>
+        <Transition name="fade">
+          <PairSelect
+            v-if="showLeftBar"
+            :available-pairs="availablePairs"
+            :selected-pair="botStore.activeBot.plotPair"
+            @selection-change="selectPair"
+          />
+        </Transition>
+      </div>
     </div>
+    <!-- End Left bar -->
 
-    <div class="md:mx-2 mt-2 pb-1 h-full">
-      <CandleChartContainer
-        :available-pairs="availablePairs"
-        :historic-view="botStore.activeBot.isWebserverMode"
-        :timeframe="finalTimeframe"
-        :trades="botStore.activeBot.allTrades"
-        :timerange="botStore.activeBot.isWebserverMode ? chartStore.timerange : undefined"
-        :strategy="botStore.activeBot.isWebserverMode ? chartStore.strategy : undefined"
-        :plot-config-modal="false"
-        @refresh-data="refreshOHLCV"
-      >
-      </CandleChartContainer>
+    <div class="flex flex-col w-full">
+      <!-- <div v-if="isWebserverMode" class="me-auto ms-3"> -->
+      <!-- Currently only available in Webserver mode -->
+      <!-- <b-form-checkbox v-model="historicView">HistoricData</b-form-checkbox> -->
+      <!-- </div> -->
+      <div v-if="botStore.activeBot.isWebserverMode" class="md:mx-3 mt-2 px-1">
+        <Panel header="Settings" toggleable>
+          <div
+            class="mb-2 border dark:border-surface-700 border-surface-300 rounded-md p-2 text-start"
+          >
+            <div class="flex flex-row gap-5">
+              <BaseCheckbox v-model="exchange.customExchange" class="mb-2">
+                Custom Exchange
+              </BaseCheckbox>
+              <span v-show="!exchange.customExchange">
+                Current Exchange:
+                {{ botStore.activeBot.botState.exchange }}
+                {{ botStore.activeBot.botState.trading_mode }}
+              </span>
+            </div>
+            <Transition name="fade">
+              <ExchangeSelect v-show="exchange.customExchange" v-model="exchange.selectedExchange" />
+            </Transition>
+          </div>
+          <div class="grid grid-cols-3 md:grid-cols-5 mx-1 gap-1 md:gap-2">
+            <div class="text-start md:me-1 col-span-2">
+              <span>Strategy</span>
+              <StrategySelect v-model="chartStore.strategy" class="mt-1 mb-1"></StrategySelect>
+              <BaseCheckbox
+                v-if="botStore.activeBot.botFeatures.chartLiveData"
+                v-model="chartStore.useLiveData"
+                class="align-self-center"
+                title="Use live data from the exchange. Only use if you don't have data downloaded locally."
+              >
+                Use Live Data
+              </BaseCheckbox>
+            </div>
+            <div class="flex flex-col text-start">
+              <span>Timeframe</span>
+              <TimeframeSelect v-model="chartStore.selectedTimeframe" class="mt-1" />
+            </div>
+            <TimeRangeSelect
+              v-model="chartStore.timerange"
+              class="col-span-3 md:col-span-2"
+            ></TimeRangeSelect>
+          </div>
+        </Panel>
+      </div>
+
+      <div class="md:mx-2 mt-2 pb-1 h-full">
+        <CandleChartContainer
+          :available-pairs="availablePairs"
+          :historic-view="botStore.activeBot.isWebserverMode"
+          :timeframe="finalTimeframe"
+          :trades="botStore.activeBot.allTrades"
+          :timerange="botStore.activeBot.isWebserverMode ? chartStore.timerange : undefined"
+          :strategy="botStore.activeBot.isWebserverMode ? chartStore.strategy : undefined"
+          :plot-config-modal="false"
+          @refresh-data="refreshOHLCV"
+        >
+        </CandleChartContainer>
+      </div>
     </div>
   </div>
 </template>
+
+<style lang="css" scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.2s;
+}
+
+.fade-enter,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
