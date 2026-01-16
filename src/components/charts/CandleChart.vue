@@ -266,6 +266,7 @@ function updateChart(initial = false) {
       {
         name: 'Volume',
         type: 'bar',
+        barWidth: '80%',
         xAxisIndex: 1,
         yAxisIndex: 1,
         itemStyle: {
@@ -649,7 +650,7 @@ function initializeChartOptions() {
         gridIndex: 1,
         axisLine: { onZero: false },
         axisTick: { show: false },
-        axisLabel: { show: false },
+        axisLabel: { show: true },
         axisPointer: {
           label: { show: false },
         },
